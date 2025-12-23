@@ -10,8 +10,8 @@
   PYTHON_VERSION = "3.11"
 
 [functions]
-  # Python functions directory
-  directory = "apps/agent/netlify/functions"
+  # Python functions directory (using standard netlify/functions location)
+  directory = "netlify/functions"
 
   # Bundle with included files
   included_files = ["apps/agent/src/**"]
