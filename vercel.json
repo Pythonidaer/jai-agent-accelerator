@@ -12,12 +12,6 @@
       "src": "api/index.py",
       "use": "@vercel/python"
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/apps/web/$1"
-    }
   ]
 }
 
