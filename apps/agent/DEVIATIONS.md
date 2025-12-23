@@ -6,6 +6,25 @@ This document tracks deviations from the standard setup instructions that were r
 
 ---
 
+## Table of Contents
+
+1. [Initial Setup Issues](#initial-setup-issues)
+   - [Prerequisites Note](#prerequisites-note)
+   - [Issue 1: Python Version Upgrade Required](#issue-1-python-version-upgrade-required)
+   - [Issue 2: pyproject.toml Configuration Errors](#issue-2-pyprojecttoml-configuration-errors)
+   - [Issue 3: Missing FastAPI and Uvicorn Dependencies](#issue-3-missing-fastapi-and-uvicorn-dependencies)
+   - [Issue 4: Syntax Error in F-String (intake.py)](#issue-4-syntax-error-in-f-string-intakepy)
+   - [Issue 5: LangGraph create_react_agent API Change](#issue-5-langgraph-create_react_agent-api-change-version-compatibility-issue)
+   - [Issue 6: Frontend Port Configuration Mismatch](#issue-6-frontend-port-configuration-mismatch-resolved)
+2. [Exercise Implementations](#exercise-implementations)
+   - [Exercise 1: Hello, Agent](#exercise-1-hello-agent-success)
+   - [Exercise 2: Prompt Surgery](#exercise-2-prompt-surgery-major-debugging-required)
+   - [Exercise 3: Build Your First Tool](#exercise-3-build-your-first-tool-success)
+   - [Exercise 4: Deploy to Production](#exercise-4-deploy-to-production-netlify-attempt-incomplete)
+3. [Notes](#notes)
+
+---
+
 ## Initial Setup Issues
 
 These issues were encountered during the initial project setup and configuration.
