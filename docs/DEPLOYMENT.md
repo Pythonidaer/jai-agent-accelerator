@@ -387,7 +387,7 @@ railway up
 
 ## Option 4: Vercel (Recommended for Python)
 
-Vercel supports Python serverless functions natively, making it ideal for FastAPI deployments.
+Vercel supports Python serverless functions natively with built-in FastAPI support, making it ideal for FastAPI deployments. **No Mangum needed!**
 
 ### Step 1: Install Vercel CLI
 
@@ -412,14 +412,14 @@ Create `vercel.json` in the project root:
       }
     },
     {
-      "src": "api/[...path].py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/agent/$1"
+      "destination": "/api/index.py"
     },
     {
       "source": "/(.*)",
@@ -429,6 +429,8 @@ Create `vercel.json` in the project root:
 }
 ```
 
+**Important:** The rewrites order matters! API routes must come **before** the frontend catch-all.
+
 ### Step 3: Create API Directory Structure
 
 Create `api/` directory at project root for serverless functions:
@@ -437,51 +439,38 @@ Create `api/` directory at project root for serverless functions:
 mkdir -p api
 ```
 
-Create `api/[...path].py` (main API handler with catch-all routing):
+Create `api/index.py` (main API handler - Vercel's native FastAPI support):
 
 ```python
 """
-Vercel serverless function wrapper for the PMM Agent.
+Vercel serverless function for PMM Agent.
 
-This wraps our FastAPI app for Vercel's serverless environment.
-Uses catch-all routing [...path] to handle all /api/* paths.
+Vercel's native FastAPI support - no Mangum needed!
+Vercel automatically adapts the FastAPI app instance.
 """
 import sys
 from pathlib import Path
 
-# Add the agent source to Python path
-project_root = Path(__file__).parent.parent
-agent_src = project_root / "apps" / "agent" / "src"
+# Ensure Vercel can import your backend module
+# From api/index.py, go up to project root, then to apps/agent/src
+ROOT = Path(__file__).resolve().parent.parent
+agent_src = ROOT / "apps" / "agent" / "src"
 sys.path.insert(0, str(agent_src))
 
-from mangum import Mangum
-from pmm_agent.server import app
+from pmm_agent.server import app  # exports FastAPI app
 
-# Create Mangum adapter
-mangum_handler = Mangum(app, lifespan="off")
-
-# Wrapper to strip /api prefix from path
-def handler(event, context):
-    # Extract the path from the event
-    path = event.get("path", "")
-    
-    # If path starts with /api/, strip it (FastAPI expects /health, /chat/stream, etc.)
-    if path.startswith("/api/"):
-        event["path"] = path[4:]  # Remove "/api" prefix
-    elif path.startswith("/api"):
-        event["path"] = path[4:]  # Remove "/api" prefix (no trailing slash)
-    
-    # Ensure path starts with / or is empty (default to /)
-    if not event["path"] or not event["path"].startswith("/"):
-        event["path"] = "/" + event["path"] if event["path"] else "/"
-    
-    return mangum_handler(event, context)
+# Vercel will automatically handle the adaptation
+# No need for Mangum or custom handler
 ```
+
+**Key points:**
+- Vercel automatically adapts FastAPI apps - no Mangum wrapper needed
+- The function must be named `index.py` in the `api/` directory
+- FastAPI app is configured with `root_path="/api"` when running on Vercel (handled automatically in `server.py`)
 
 Create `api/requirements.txt`:
 
 ```
-mangum>=0.17.0
 anthropic>=0.18.0
 langchain>=0.1.0
 langchain-anthropic>=0.2.0
@@ -492,6 +481,8 @@ pydantic>=2.0.0
 httpx>=0.27.0
 uvicorn>=0.23.0
 ```
+
+**Note:** Mangum is **not** needed - Vercel handles FastAPI natively.
 
 ### Step 4: Update Frontend Build Configuration
 
@@ -537,7 +528,7 @@ vercel --prod
 ### Step 6: Verify Deployment
 
 ```bash
-# Check health endpoint (routes to /api/agent which handles /health)
+# Check health endpoint
 curl https://your-project.vercel.app/api/health
 
 # Expected response:
@@ -545,6 +536,10 @@ curl https://your-project.vercel.app/api/health
 ```
 
 Open `https://your-project.vercel.app` — your agent is live!
+
+### Important: Logging Configuration
+
+**Critical:** The observability system automatically detects Vercel and disables file logging (Vercel's filesystem is read-only). Logs are automatically sent to stdout/stderr and appear in Vercel's function logs dashboard. No configuration needed - this is handled automatically in `observability.py`.
 
 ### Vercel Environment Variables Reference
 

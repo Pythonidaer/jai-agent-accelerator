@@ -6,12 +6,18 @@ Tracks agent behavior, tool usage, and response quality for debugging and improv
 
 import json
 import logging
+import os
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
+
+
+def running_on_vercel() -> bool:
+    """Check if running on Vercel serverless environment."""
+    return os.getenv("VERCEL") == "1" or os.getenv("VERCEL_ENV") is not None
 
 
 class LogLevel(Enum):
@@ -70,18 +76,31 @@ class AgentLogger:
         Initialize logger.
         
         Args:
-            log_dir: Directory to save log files (default: ./logs)
+            log_dir: Directory to save log files (default: ./logs or /tmp/logs on Vercel)
             enable_file_logging: Whether to write logs to files
         """
-        self.log_dir = log_dir or Path(__file__).parent.parent.parent / "logs"
-        self.log_dir.mkdir(exist_ok=True)
-        self.enable_file_logging = enable_file_logging
+        # On Vercel, use /tmp for any file operations (read-write)
+        # Otherwise use project directory
+        if running_on_vercel():
+            self.log_dir = Path("/tmp/logs")
+            # Disable file logging on Vercel by default (use stdout/stderr)
+            self.enable_file_logging = False
+        else:
+            self.log_dir = log_dir or Path(__file__).parent.parent.parent / "logs"
+            self.enable_file_logging = enable_file_logging
+        
+        # Only create directory if file logging is enabled and not on Vercel
+        if self.enable_file_logging and not running_on_vercel():
+            self.log_dir.mkdir(exist_ok=True)
+        elif running_on_vercel() and self.enable_file_logging:
+            # On Vercel, use /tmp if file logging is explicitly enabled
+            self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # Setup Python logging
         self.logger = logging.getLogger("pmm_agent")
         self.logger.setLevel(logging.DEBUG)
         
-        # Console handler
+        # Console handler (always use stdout/stderr)
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter(
@@ -90,15 +109,20 @@ class AgentLogger:
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
         
-        # File handler
+        # File handler (only if enabled and directory is writable)
         if self.enable_file_logging:
-            file_handler = logging.FileHandler(self.log_dir / "agent.log")
-            file_handler.setLevel(logging.DEBUG)
-            file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
-            )
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
+            try:
+                file_handler = logging.FileHandler(self.log_dir / "agent.log")
+                file_handler.setLevel(logging.DEBUG)
+                file_formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+                )
+                file_handler.setFormatter(file_formatter)
+                self.logger.addHandler(file_handler)
+            except (OSError, PermissionError) as e:
+                # If we can't write to file, just log to console
+                self.logger.warning(f"Could not create file handler: {e}. Using console logging only.")
+                self.enable_file_logging = False
         
         # Event storage
         self.events: List[AgentResponseEvent] = []
@@ -253,9 +277,17 @@ class AgentLogger:
     
     def _save_event(self, event: AgentResponseEvent):
         """Save event to JSON file for analysis."""
-        event_file = self.log_dir / f"events_{datetime.now().strftime('%Y%m%d')}.jsonl"
-        with open(event_file, "a") as f:
-            f.write(json.dumps(asdict(event), default=str) + "\n")
+        if not self.enable_file_logging:
+            # On Vercel or when file logging disabled, just log to console
+            self.logger.debug(f"[EVENT] {json.dumps(asdict(event), default=str)}")
+            return
+        
+        try:
+            event_file = self.log_dir / f"events_{datetime.now().strftime('%Y%m%d')}.jsonl"
+            with open(event_file, "a") as f:
+                f.write(json.dumps(asdict(event), default=str) + "\n")
+        except (OSError, PermissionError) as e:
+            self.logger.warning(f"Could not save event to file: {e}")
     
     def get_session_summary(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get summary metrics for a session."""
@@ -283,7 +315,11 @@ class AgentLogger:
     
     def export_metrics(self, output_path: Optional[Path] = None) -> Path:
         """Export all metrics to JSON file."""
-        output_path = output_path or self.log_dir / f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        if not self.enable_file_logging and not output_path:
+            # On Vercel, use /tmp if no path specified
+            output_path = Path("/tmp") / f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        else:
+            output_path = output_path or self.log_dir / f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         
         metrics = {
             "sessions": {
@@ -302,10 +338,15 @@ class AgentLogger:
             }
         }
         
-        with open(output_path, "w") as f:
-            json.dump(metrics, f, indent=2, default=str)
+        try:
+            with open(output_path, "w") as f:
+                json.dump(metrics, f, indent=2, default=str)
+            self.logger.info(f"Metrics exported to {output_path}")
+        except (OSError, PermissionError) as e:
+            self.logger.warning(f"Could not export metrics to file: {e}")
+            # Fallback: log metrics to console
+            self.logger.info(f"Metrics: {json.dumps(metrics, indent=2, default=str)}")
         
-        self.logger.info(f"Metrics exported to {output_path}")
         return output_path
 
 

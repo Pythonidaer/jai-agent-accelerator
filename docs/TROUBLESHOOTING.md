@@ -75,6 +75,8 @@ print(result)
 
 ### Exercise 4: Deploy to Production
 
+#### Netlify Issues
+
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Build fails on Netlify | Node/Python version mismatch | Set in `netlify.toml` (see below) |
@@ -83,8 +85,9 @@ print(result)
 | Function timeout (10s) | Free tier limit | Upgrade Netlify or optimize response |
 | CORS error in production | `ALLOWED_ORIGINS` wrong | Set to your domain or `*` for testing |
 | Cold start > 5 seconds | Normal for serverless | Implement keep-warm or use Railway |
+| "No functions deployed" | Netlify doesn't support Python | **Use Vercel instead** (see below) |
 
-**Verify deployment:**
+**Verify Netlify deployment:**
 ```bash
 # Health check
 curl https://your-site.netlify.app/api/health
@@ -92,6 +95,54 @@ curl https://your-site.netlify.app/api/health
 # Expected response
 {"status": "ok", "agent": "jai-agent-accelerator"}
 ```
+
+#### Vercel Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `OSError: Read-only file system` | Logging tries to write to `/var/task` | **Fixed automatically** - observability detects Vercel and uses stdout |
+| `FUNCTION_INVOCATION_FAILED` on import | File logging attempted | Check `observability.py` has Vercel detection (should be automatic) |
+| `404 NOT_FOUND` on `/api/*` | Rewrite order wrong | API rewrite must come **before** frontend rewrite in `vercel.json` |
+| Frontend loads but API 404 | Rewrite catching API routes | Ensure `/api/(.*)` rewrite is first, before `/(.*)` catch-all |
+| `ModuleNotFoundError: pmm_agent` | Path setup incorrect | Check `api/index.py` uses `parent.parent` (2 levels up from `api/`) |
+| Function crashes on startup | Missing dependencies | Ensure `api/requirements.txt` includes all packages (no Mangum needed) |
+| `root_path` error | FastAPI path mismatch | `server.py` automatically sets `root_path="/api"` when `VERCEL` env var is set |
+
+**Verify Vercel deployment:**
+```bash
+# Health check
+curl https://your-project.vercel.app/api/health
+
+# Expected response
+{"status": "ok", "agent": "jai-agent-accelerator", "version": "0.1.0"}
+```
+
+**Common Vercel debugging steps:**
+
+1. **Check function logs:**
+   - Go to Vercel Dashboard → Your Project → Functions → `index`
+   - Click on a deployment → View logs
+   - Look for import errors or runtime errors
+
+2. **Verify rewrite order:**
+   ```json
+   "rewrites": [
+     { "source": "/api/(.*)", "destination": "/api/index.py" },  // API first!
+     { "source": "/(.*)", "destination": "/apps/web/$1" }         // Frontend second
+   ]
+   ```
+
+3. **Test API directly:**
+   ```bash
+   curl -v https://your-project.vercel.app/api/health
+   # Should return 200, not 404
+   ```
+
+4. **Check environment variables:**
+   ```bash
+   vercel env ls
+   # Should show ANTHROPIC_API_KEY
+   ```
 
 ---
 
@@ -317,6 +368,38 @@ Build failed: Python version not supported
 [build.environment]
   PYTHON_VERSION = "3.11"
 ```
+
+```
+OSError: [Errno 30] Read-only file system: '/var/task/.../logs/agent.log'
+```
+**Fix:** This happens on Vercel when code tries to write to the deployment directory. The observability system automatically detects Vercel and disables file logging. If you see this error:
+
+1. Check `observability.py` has `running_on_vercel()` function
+2. Ensure file logging is disabled when `running_on_vercel()` returns `True`
+3. Redeploy - logs will go to stdout/stderr (visible in Vercel dashboard)
+
+**Root cause:** Vercel's `/var/task` directory (where your code lives) is read-only. Only `/tmp` is writable, but for logging, stdout/stderr is preferred.
+
+```
+FUNCTION_INVOCATION_FAILED on Vercel
+```
+**Fix:** Check Vercel function logs for the actual error. Common causes:
+1. **Import error:** Path setup in `api/index.py` incorrect - use `parent.parent` (2 levels up)
+2. **Missing dependency:** Check `api/requirements.txt` includes all packages
+3. **File write attempt:** Logging trying to write files (should be auto-fixed)
+4. **Environment variable missing:** `ANTHROPIC_API_KEY` not set in Vercel dashboard
+
+```
+404 on /api/* routes on Vercel
+```
+**Fix:** Rewrite order in `vercel.json` is critical:
+```json
+"rewrites": [
+  { "source": "/api/(.*)", "destination": "/api/index.py" },  // MUST be first
+  { "source": "/(.*)", "destination": "/apps/web/$1" }         // Must be second
+]
+```
+The frontend catch-all `/(.*)` will intercept API requests if it comes first!
 
 ---
 
