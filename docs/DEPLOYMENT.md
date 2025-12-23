@@ -419,7 +419,7 @@ Create `vercel.json` in the project root:
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/agent"
+      "destination": "/api/agent/$1"
     },
     {
       "source": "/(.*)",
