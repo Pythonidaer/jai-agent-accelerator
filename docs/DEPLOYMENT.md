@@ -385,14 +385,180 @@ railway up
 
 ---
 
-## Option 4: Vercel (Coming Soon)
+## Option 4: Vercel (Recommended for Python)
 
-Vercel deployment documentation is in development. The pattern will be:
+Vercel supports Python serverless functions natively, making it ideal for FastAPI deployments.
 
-- **Frontend**: Zero-config Vite deployment
-- **Backend**: Vercel Serverless Functions (Python runtime)
+### Step 1: Install Vercel CLI
 
-Check back for updates or join the Discord for early access.
+```bash
+npm install -g vercel
+vercel login
+```
+
+### Step 2: Create Vercel Configuration
+
+Create `vercel.json` in the project root:
+
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/web/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "api/**/*.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/agent"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+### Step 3: Create API Directory Structure
+
+Create `api/` directory at project root for serverless functions:
+
+```bash
+mkdir -p api
+```
+
+Create `api/agent.py` (main API handler):
+
+```python
+"""
+Vercel serverless function wrapper for the PMM Agent.
+
+This wraps our FastAPI app for Vercel's serverless environment.
+"""
+import sys
+from pathlib import Path
+
+# Add the agent source to Python path
+project_root = Path(__file__).parent.parent
+agent_src = project_root / "apps" / "agent" / "src"
+sys.path.insert(0, str(agent_src))
+
+from mangum import Mangum
+from pmm_agent.server import app
+
+# Create the handler that Vercel will invoke
+handler = Mangum(app, lifespan="off")
+```
+
+Create `api/requirements.txt`:
+
+```
+mangum>=0.17.0
+anthropic>=0.18.0
+langchain>=0.1.0
+langchain-anthropic>=0.2.0
+langchain-core>=0.3.0
+langgraph>=0.2.0
+fastapi>=0.100.0
+pydantic>=2.0.0
+httpx>=0.27.0
+uvicorn>=0.23.0
+```
+
+### Step 4: Update Frontend Build Configuration
+
+Update `apps/web/package.json` to add build script for Vercel:
+
+```json
+{
+  "scripts": {
+    "build": "tsc && vite build",
+    "vercel-build": "npm run build"
+  }
+}
+```
+
+### Step 5: Initialize and Deploy
+
+```bash
+# Initialize Vercel project
+vercel
+
+# When prompted:
+# - Set up and deploy? Yes
+# - Which scope? (your account)
+# - Link to existing project? No
+# - Project name? (e.g., my-pmm-agent)
+# - Directory? ./
+# - Override settings? No
+# - Detected a repository. Connect it to this project? Yes
+#   (This enables automatic deployments on git push)
+
+# Set environment variables
+vercel env add ANTHROPIC_API_KEY production
+# Paste your API key when prompted
+# When asked "Mark as sensitive? (y/N)": y
+# (This hides the key in logs and UI)
+
+# Deploy to production
+vercel --prod
+```
+
+**Note:** If you see a warning about `builds` in your configuration file, this is expected and not an issue. It simply means Vercel will use the build settings from `vercel.json` instead of the UI settings, which is the correct behavior for our setup.
+
+### Step 6: Verify Deployment
+
+```bash
+# Check health endpoint (routes to /api/agent which handles /health)
+curl https://your-project.vercel.app/api/health
+
+# Expected response:
+# {"status": "ok", "agent": "jai-agent-accelerator", "version": "0.1.0"}
+```
+
+Open `https://your-project.vercel.app` — your agent is live!
+
+### Vercel Environment Variables Reference
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key |
+| `MODEL` | No | Model to use (default: `claude-sonnet-4-20250514`) |
+| `MAX_TOKENS` | No | Max response tokens (default: `8192`) |
+| `LOG_LEVEL` | No | Logging level (default: `INFO`) |
+
+### Automatic Deployments
+
+Once connected to GitHub, Vercel automatically deploys:
+- **Production**: On push to `main` branch
+- **Preview**: On pull requests and other branches
+
+No additional configuration needed.
+
+### Vercel vs Netlify for Python
+
+| Feature | Vercel | Netlify |
+|---------|--------|---------|
+| Python Functions | ✅ Supported | ❌ Not supported |
+| Frontend Hosting | ✅ Zero-config | ✅ Zero-config |
+| Free Tier | Generous | Generous |
+| Function Timeout | 10s (free), 60s (Pro) | 10s (free), 26s (Pro) |
+| Cold Starts | Fast | Fast |
+| Pricing | Similar | Similar |
+
+**Recommendation**: Use Vercel for Python/FastAPI backends.
 
 ---
 
