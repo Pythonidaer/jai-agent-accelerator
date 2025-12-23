@@ -37,3 +37,6 @@ apps/web/.vite/
 *.pem
 *.key
 credentials.json
+
+# Local Netlify folder
+.netlify
