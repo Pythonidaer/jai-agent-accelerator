@@ -412,7 +412,7 @@ Create `vercel.json` in the project root:
       }
     },
     {
-      "src": "api/**/*.py",
+      "src": "api/[...path].py",
       "use": "@vercel/python"
     }
   ],
@@ -437,13 +437,14 @@ Create `api/` directory at project root for serverless functions:
 mkdir -p api
 ```
 
-Create `api/agent.py` (main API handler):
+Create `api/[...path].py` (main API handler with catch-all routing):
 
 ```python
 """
 Vercel serverless function wrapper for the PMM Agent.
 
 This wraps our FastAPI app for Vercel's serverless environment.
+Uses catch-all routing [...path] to handle all /api/* paths.
 """
 import sys
 from pathlib import Path
@@ -456,8 +457,25 @@ sys.path.insert(0, str(agent_src))
 from mangum import Mangum
 from pmm_agent.server import app
 
-# Create the handler that Vercel will invoke
-handler = Mangum(app, lifespan="off")
+# Create Mangum adapter
+mangum_handler = Mangum(app, lifespan="off")
+
+# Wrapper to strip /api prefix from path
+def handler(event, context):
+    # Extract the path from the event
+    path = event.get("path", "")
+    
+    # If path starts with /api/, strip it (FastAPI expects /health, /chat/stream, etc.)
+    if path.startswith("/api/"):
+        event["path"] = path[4:]  # Remove "/api" prefix
+    elif path.startswith("/api"):
+        event["path"] = path[4:]  # Remove "/api" prefix (no trailing slash)
+    
+    # Ensure path starts with / or is empty (default to /)
+    if not event["path"] or not event["path"].startswith("/"):
+        event["path"] = "/" + event["path"] if event["path"] else "/"
+    
+    return mangum_handler(event, context)
 ```
 
 Create `api/requirements.txt`:
