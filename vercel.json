@@ -9,15 +9,11 @@
       }
     },
     {
-      "src": "api/[...path].py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
     {
       "source": "/(.*)",
       "destination": "/apps/web/$1"
