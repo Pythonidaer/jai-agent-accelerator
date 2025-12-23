@@ -40,3 +40,4 @@ credentials.json
 
 # Local Netlify folder
 .netlify
+.vercel

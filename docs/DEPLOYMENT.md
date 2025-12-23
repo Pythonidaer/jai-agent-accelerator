@@ -416,13 +416,11 @@ Create `vercel.json` in the project root:
       "use": "@vercel/python"
     }
   ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/agent"
-    }
-  ],
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/agent"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

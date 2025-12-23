@@ -452,6 +452,73 @@ The fixed implementation follows this clear workflow:
 
 ---
 
+### Exercise 4: Deploy to Production (Netlify Attempt - Incomplete)
+
+**Status:** ❌ Incomplete - Netlify does not support Python functions
+
+**Context:**
+- Exercise 4 requires deploying the agent to production
+- Initial attempt used Netlify as specified in `docs/DEPLOYMENT.md`
+- Discovered that Netlify Functions do not support Python runtime
+
+**Root Cause: Netlify Language Support Limitations**
+
+**Netlify Functions Supported Languages:**
+- ✅ TypeScript
+- ✅ JavaScript  
+- ✅ Go
+- ❌ **Python (NOT SUPPORTED)**
+
+**Documentation Discrepancy:**
+- `docs/DEPLOYMENT.md` (lines 68-218) provides detailed instructions for deploying Python/FastAPI applications to Netlify
+- Documentation includes Python-specific configuration (`PYTHON_VERSION = "3.11"` in `netlify.toml`)
+- Documentation shows Python function wrapper using Mangum for AWS Lambda compatibility
+- **However, Netlify's official documentation states functions only support TypeScript, JavaScript, and Go**
+
+**What We Discovered:**
+1. **Netlify Functions Language Support**: According to Netlify's official documentation, serverless functions only support TypeScript, JavaScript, and Go. Python is not supported.
+2. **Deployment Attempt Results**: 
+   - Frontend deployed successfully to Netlify
+   - Function deployment showed "No functions deployed" in deploy summary
+   - All function files were created correctly (`netlify/functions/agent.py`, `requirements.txt`)
+   - Netlify did not recognize Python files as deployable functions
+3. **Why It Partially Worked with Localhost**:
+   - Frontend was deployed to Netlify (remote)
+   - Backend was still running locally on `localhost:8123`
+   - Frontend code defaulted to `localhost:8123` because `VITE_API_URL` was empty
+   - Browser's "local network" permission allowed remote frontend to connect to local backend
+   - This created a hybrid setup: remote frontend → local backend
+   - When permission was blocked, connection failed (expected behavior)
+
+**Files Created (But Not Functional on Netlify):**
+- `netlify.toml` - Netlify configuration
+- `netlify/functions/agent.py` - Python function wrapper (not deployable)
+- `netlify/functions/requirements.txt` - Python dependencies
+- `apps/web/src/vite-env.d.ts` - TypeScript definitions for Vite env vars
+- Updated `apps/agent/src/pmm_agent/server.py` - Health endpoint format
+- Updated `apps/web/src/App.tsx` - API URL configuration for production
+
+**Issues Encountered:**
+1. **Import Path Error**: Fixed path calculation in `netlify/functions/agent.py` (line 12)
+   - Original: `Path(__file__).parent.parent / "apps" / "agent" / "src"` (incorrect - only went up 2 levels)
+   - Fixed: `Path(__file__).parent.parent.parent / "apps" / "agent" / "src"` (correct - goes up 3 levels to project root)
+2. **Function Not Deploying**: Netlify doesn't recognize Python files as functions
+3. **404 Errors**: All API endpoints return 404 because function doesn't exist
+   - `/api/health` → redirects to `/.netlify/functions/agent/health` → 404 (function not found)
+   - `/api/chat/stream` → redirects to `/.netlify/functions/agent/chat/stream` → 404 (function not found)
+
+**Resolution:**
+- Switching to Vercel deployment (supports Python serverless functions)
+- Netlify deployment guide in `docs/DEPLOYMENT.md` appears to be incorrect or outdated
+- Alternative platforms that support Python: Vercel, Railway, Render, Fly.io, AWS Lambda
+
+**Reference:**
+- Exercise 4 documentation: `docs/EXERCISES.md` (lines 254-317)
+- Netlify Functions documentation: [Netlify Functions Overview](https://docs.netlify.com/functions/overview/)
+- Netlify language support: TypeScript, JavaScript, Go only (no Python)
+
+---
+
 ## Notes
 
 - These deviations were necessary due to project configuration mismatches, code syntax issues, and API changes

@@ -27,7 +27,10 @@ import remarkGfm from "remark-gfm";
 // CONFIGURATION
 // =============================================================================
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8123";
+// Use relative URLs in production (works with Netlify redirects)
+// Only use localhost in development
+const API_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.DEV ? "http://localhost:8123" : "/api");
 
 // Tool display config with icons
 const TOOL_CONFIG: Record<string, { label: string; icon: string; color: string }> = {

@@ -8,8 +8,13 @@ import sys
 from pathlib import Path
 
 # Add the agent source to Python path
-# From netlify/functions/agent.py, go up to project root, then to apps/agent/src
-agent_src = Path(__file__).parent.parent / "apps" / "agent" / "src"
+# From netlify/functions/agent.py:
+#   parent = netlify/functions
+#   parent.parent = netlify
+#   parent.parent.parent = project root
+#   Then: apps/agent/src
+project_root = Path(__file__).parent.parent.parent
+agent_src = project_root / "apps" / "agent" / "src"
 sys.path.insert(0, str(agent_src))
 
 from mangum import Mangum
