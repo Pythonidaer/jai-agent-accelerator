@@ -13,7 +13,7 @@ This guide covers the recommended deployment pattern: **Netlify for frontend + b
 3. [Option 1: Netlify (Recommended)](#option-1-netlify-recommended)
 4. [Option 2: Docker Self-Hosted](#option-2-docker-self-hosted)
 5. [Option 3: Railway](#option-3-railway)
-6. [Option 4: Vercel](#option-4-vercel-coming-soon)
+6. [Option 4: Vercel](#option-4-vercel-recommended-for-python)
 7. [Production Checklist](#production-checklist)
 8. [Troubleshooting](#troubleshooting)
 

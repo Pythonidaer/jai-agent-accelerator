@@ -27,7 +27,7 @@ import remarkGfm from "remark-gfm";
 // CONFIGURATION
 // =============================================================================
 
-// Use relative URLs in production (works with Vercel redirects)
+// Use relative URLs in production (works with Vercel rewrites)
 // Only use localhost in development
 const API_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.DEV ? "http://localhost:8123" : "/api");
