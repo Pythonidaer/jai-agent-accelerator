@@ -25,7 +25,11 @@ from .observability import get_logger
 # Create a tool lookup for execution
 TOOL_MAP = {tool.name: tool for tool in ALL_TOOLS}
 
-app = FastAPI(title="PMM Deep Agent", version="0.1.0")
+# Configure root_path for Vercel deployment
+# Vercel passes /api/* paths, so FastAPI needs to know it's mounted at /api
+import os
+root_path = "/api" if os.getenv("VERCEL") else ""
+app = FastAPI(title="PMM Deep Agent", version="0.1.0", root_path=root_path)
 
 # CORS for local dev
 app.add_middleware(
