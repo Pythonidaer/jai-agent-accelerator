@@ -33,9 +33,15 @@ def analyze_product(
     Use this tool when starting any PMM project to structure the inputs
     and identify gaps in the available information.
 
+    IMPORTANT: The product_description parameter MUST be extracted from the user's message.
+    Look at the most recent user message in the conversation and extract the product description from there.
+    If the user described their product, use that description. If they mentioned a product name and what it does, include both.
+
     Args:
-        product_description: Description of the product, features, and context
-        existing_materials: Any existing positioning, messaging, or marketing materials
+        product_description: REQUIRED - The full description of the product from the user's message. 
+                             Extract this from the conversation context, including what the product does,
+                             who it's for, and what problem it solves.
+        existing_materials: Optional - Any existing positioning, messaging, or marketing materials
 
     Returns:
         Structured analysis of the product with identified gaps
@@ -146,6 +152,12 @@ def identify_icp(
     Returns:
         Structured ICP definition with targeting criteria
     """
+    default_excluded = "- Companies too small to need this\n- Teams without the pain point\n- Orgs with conflicting technology"
+    excluded_text = excluded_segments if excluded_segments else default_excluded
+    
+    default_customers = "No current customer data provided. Consider customer interviews or survey data."
+    customers_text = current_customers if current_customers else default_customers
+    
     return f"""
 ## Ideal Customer Profile (ICP) Definition
 
@@ -171,10 +183,10 @@ def identify_icp(
 - [Change in circumstances]
 
 ### Anti-ICP (Who We're NOT For)
-{excluded_segments if excluded_segments else "- Companies too small to need this\n- Teams without the pain point\n- Orgs with conflicting technology"}
+{excluded_text}
 
 ### Current Customer Signals
-{current_customers if current_customers else "No current customer data provided. Consider customer interviews or survey data."}
+{customers_text}
 
 ### Validation Questions
 1. Would they self-identify with this description?

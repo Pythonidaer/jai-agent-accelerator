@@ -25,7 +25,7 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3003:3003"
     depends_on:
       - agent
     environment:

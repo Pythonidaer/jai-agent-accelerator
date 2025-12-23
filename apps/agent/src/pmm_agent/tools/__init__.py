@@ -35,6 +35,10 @@ from .risk import (
     identify_gaps,
 )
 
+from .scoring import (
+    calculate_positioning_readiness,
+)
+
 # Tool categories for mode-based selection
 INTAKE_TOOLS = [
     analyze_product,
@@ -63,7 +67,11 @@ RISK_TOOLS = [
     identify_gaps,
 ]
 
-ALL_TOOLS = INTAKE_TOOLS + RESEARCH_TOOLS + PLANNING_TOOLS + RISK_TOOLS
+SCORING_TOOLS = [
+    calculate_positioning_readiness,
+]
+
+ALL_TOOLS = INTAKE_TOOLS + RESEARCH_TOOLS + PLANNING_TOOLS + RISK_TOOLS + SCORING_TOOLS
 
 # Tools that require human approval before execution
 HUMAN_APPROVAL_TOOLS = [

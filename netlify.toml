@@ -1,0 +1,30 @@
+[build]
+  # Build the frontend
+  command = "cd apps/web && npm install && npm run build"
+  publish = "apps/web/dist"
+
+[build.environment]
+  # Node version for build
+  NODE_VERSION = "18"
+  # Python version for functions
+  PYTHON_VERSION = "3.11"
+
+[functions]
+  # Python functions directory
+  directory = "apps/agent/netlify/functions"
+
+  # Bundle with included files
+  included_files = ["apps/agent/src/**"]
+
+# API routes proxy to functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/agent/:splat"
+  status = 200
+
+# SPA fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+

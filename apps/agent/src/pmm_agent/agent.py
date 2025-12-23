@@ -62,17 +62,17 @@ def create_pmm_agent(
     elif mode == "risk":
         tools = RISK_TOOLS + RESEARCH_TOOLS
 
-    # Initialize model
+    # Initialize model with system prompt
     llm = ChatAnthropic(
         model_name=model_name,
         max_tokens=8192,
+        system=MAIN_SYSTEM_PROMPT,
     )
 
     # Create base agent
     agent = create_react_agent(
         model=llm,
         tools=tools,
-        state_modifier=MAIN_SYSTEM_PROMPT,
     )
 
     return agent
@@ -80,33 +80,38 @@ def create_pmm_agent(
 
 def create_competitive_analyst():
     """Create a specialist agent for competitive intelligence."""
-    llm = ChatAnthropic(model_name="claude-sonnet-4-20250514", max_tokens=4096)
+    llm = ChatAnthropic(
+        model_name="claude-sonnet-4-20250514",
+        max_tokens=4096,
+        system=COMPETITIVE_ANALYST_PROMPT,
+    )
     return create_react_agent(
         model=llm,
         tools=RESEARCH_TOOLS,
-        state_modifier=COMPETITIVE_ANALYST_PROMPT,
     )
 
 
 def create_messaging_specialist():
     """Create a specialist agent for messaging work."""
-    llm = ChatAnthropic(model_name="claude-sonnet-4-20250514", max_tokens=4096)
+    llm = ChatAnthropic(
+        model_name="claude-sonnet-4-20250514",
+        max_tokens=4096,
+        system=MESSAGING_SPECIALIST_PROMPT,
+    )
     return create_react_agent(
         model=llm,
         tools=PLANNING_TOOLS,
-        state_modifier=MESSAGING_SPECIALIST_PROMPT,
     )
 
 
 def create_launch_coordinator():
     """Create a specialist agent for launch planning."""
-    llm = ChatAnthropic(model_name="claude-sonnet-4-20250514", max_tokens=4096)
+    llm = ChatAnthropic(
+        model_name="claude-sonnet-4-20250514",
+        max_tokens=4096,
+        system=LAUNCH_COORDINATOR_PROMPT,
+    )
     return create_react_agent(
         model=llm,
         tools=PLANNING_TOOLS + RISK_TOOLS,
-        state_modifier=LAUNCH_COORDINATOR_PROMPT,
     )
-
-
-# Convenience exports
-agent = create_pmm_agent()
