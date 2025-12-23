@@ -36,13 +36,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Check for API key
-if not os.getenv("ANTHROPIC_API_KEY"):
-    raise ValueError(
-        "ANTHROPIC_API_KEY environment variable is not set. "
-        "Please set it before starting the server:\n"
-        "  export ANTHROPIC_API_KEY=sk-ant-your-key-here"
-    )
+# Check for API key (only raise at runtime, not during import)
+# This allows the function to be deployed even if env var isn't set during build
+def check_api_key():
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise ValueError(
+            "ANTHROPIC_API_KEY environment variable is not set. "
+            "Please set it before starting the server:\n"
+            "  export ANTHROPIC_API_KEY=sk-ant-your-key-here"
+        )
+
+# Check on startup (FastAPI startup event)
+@app.on_event("startup")
+async def startup_check():
+    check_api_key()
 
 # Initialize model with tools
 llm = ChatAnthropic(
