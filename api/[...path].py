@@ -2,6 +2,7 @@
 Vercel serverless function wrapper for the PMM Agent.
 
 This wraps our FastAPI app for Vercel's serverless environment.
+Uses catch-all routing [...path] to handle all /api/* paths.
 """
 import sys
 from pathlib import Path
