@@ -423,7 +423,7 @@ Create `vercel.json` in the project root:
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/apps/web/$1"
     }
   ]
 }
