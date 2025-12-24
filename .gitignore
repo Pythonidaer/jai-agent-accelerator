@@ -28,6 +28,11 @@ apps/web/dist/
 apps/web/.vite/
 *.log
 
+# Logs and observability data
+apps/agent/logs/
+**/logs/*.jsonl
+**/logs/*.json
+
 # Cache
 .cache/
 .pytest_cache/

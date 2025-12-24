@@ -575,18 +575,22 @@ No additional configuration needed.
 
 ## Production Checklist
 
+> **💡 Verification Tools Available:**
+> - **Automated Tests**: Run `python apps/agent/run_deployment_checklist_test.py` to test code-level items
+> - **Manual Verification Guide**: See [DEPLOYMENT_CHECKLIST_VERIFICATION.md](DEPLOYMENT_CHECKLIST_VERIFICATION.md) for detailed steps to verify each item
+
 ### Security
 
 - [ ] **API Key Security**: Never commit keys to git
-- [ ] **CORS Configuration**: Restrict to your domains only
+- [ ] **CORS Configuration**: Restrict to your domains only *(✅ Improved: Now configurable via ALLOWED_ORIGINS env var)*
 - [ ] **Rate Limiting**: Implement request limits
-- [ ] **Input Validation**: Validate all user inputs
+- [ ] **Input Validation**: Validate all user inputs *(✅ Improved: Added message length validation)*
 - [ ] **HTTPS Only**: Enforce TLS everywhere
 
 ### Performance
 
 - [ ] **Response Caching**: Cache common queries
-- [ ] **Conversation Truncation**: Limit history length
+- [ ] **Conversation Truncation**: Limit history length *(✅ Implemented: MAX_MESSAGE_HISTORY=100)*
 - [ ] **Model Selection**: Use Haiku for simple tasks
 - [ ] **Cold Start Optimization**: Keep functions warm
 
