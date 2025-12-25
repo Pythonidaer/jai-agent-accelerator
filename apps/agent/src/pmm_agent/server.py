@@ -9,10 +9,13 @@ import uuid
 import time
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
@@ -62,6 +65,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting configuration
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Check for API key (only raise at runtime, not during import)
 # This allows the function to be deployed even if env var isn't set during build
@@ -120,14 +128,16 @@ class ChatResponse(BaseModel):
 
 
 @app.get("/health")
-def health():
+@limiter.limit("60/minute")  # 60 requests per minute for health checks
+def health(request: Request):
     return {"status": "ok", "agent": "jai-agent-accelerator", "version": "0.1.0"}
 
 
 @app.post("/chat")
-async def chat(request: ChatRequest) -> ChatResponse:
+@limiter.limit("10/minute")  # 10 chat requests per minute per IP
+async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
     """Simple chat endpoint."""
-    session_id = request.session_id or str(uuid.uuid4())
+    session_id = chat_request.session_id or str(uuid.uuid4())
 
     # Get or create session
     if session_id not in sessions:
@@ -138,7 +148,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         }
 
     session = sessions[session_id]
-    session["messages"].append({"role": "user", "content": request.message})
+    session["messages"].append({"role": "user", "content": chat_request.message})
     
     # Truncate messages to prevent excessive token usage
     session["messages"] = truncate_session_messages(session["messages"])
@@ -196,9 +206,10 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 
 @app.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
+@limiter.limit("10/minute")  # 10 streaming requests per minute per IP
+async def chat_stream(chat_request: ChatRequest, request: Request):
     """Streaming chat endpoint."""
-    session_id = request.session_id or str(uuid.uuid4())
+    session_id = chat_request.session_id or str(uuid.uuid4())
 
     if session_id not in sessions:
         sessions[session_id] = {
@@ -213,7 +224,7 @@ async def chat_stream(request: ChatRequest):
     user_messages = [m for m in session["messages"] if m["role"] == "user"]
     is_first_message = len(user_messages) == 0
     
-    session["messages"].append({"role": "user", "content": request.message})
+    session["messages"].append({"role": "user", "content": chat_request.message})
     
     # Truncate messages to prevent excessive token usage
     session["messages"] = truncate_session_messages(session["messages"])
@@ -496,7 +507,7 @@ async def chat_stream(request: ChatRequest):
         logger.log_response(
             session_id=session_id,
             message_id=message_id,
-            user_message=request.message,
+            user_message=chat_request.message,
             agent_response=full_response,
             tool_calls=tool_calls_tracked,
             response_time_ms=response_time_ms,
@@ -527,7 +538,8 @@ def delete_session(session_id: str):
 
 
 @app.get("/metrics")
-def get_metrics():
+@limiter.limit("30/minute")  # 30 requests per minute for metrics
+def get_metrics(request: Request):
     """Get observability metrics."""
     return {
         "sessions": {
@@ -546,7 +558,8 @@ def get_metrics():
 
 
 @app.get("/metrics/session/{session_id}")
-def get_session_metrics(session_id: str):
+@limiter.limit("30/minute")  # 30 requests per minute for metrics
+def get_session_metrics(session_id: str, request: Request):
     """Get metrics for a specific session."""
     summary = logger.get_session_summary(session_id)
     if not summary:
@@ -555,7 +568,8 @@ def get_session_metrics(session_id: str):
 
 
 @app.post("/metrics/export")
-def export_metrics():
+@limiter.limit("10/minute")  # 10 exports per minute
+def export_metrics(request: Request):
     """Export all metrics to JSON file."""
     output_path = logger.export_metrics()
     return {"status": "exported", "path": str(output_path)}
