@@ -157,11 +157,27 @@ vercel env add MAX_MESSAGE_HISTORY production  # Default: 100
 
 **Related Documentation**: `docs/COLD_START_OPTIMIZATION.md` (comprehensive guide if needed in the future)
 
-### Error Tracking (⚠️ Recommended)
-Set up Sentry or similar:
-- Install: `pip install sentry-sdk[fastapi]`
-- Configure DSN in environment variables
-- See verification guide for code examples
+### Error Tracking (✅ Using Vercel Logs)
+**Status**: Using Vercel function logs (built-in, zero setup)
+
+**Current Implementation:**
+- Vercel automatically captures stdout/stderr from serverless functions
+- Access logs via: `vercel logs https://your-app.vercel.app` or Vercel dashboard
+- Includes uncaught exceptions, stack traces, and function execution metadata
+
+**Decision Rationale:**
+- ✅ Zero setup required (already available)
+- ✅ Sufficient for basic error monitoring
+- ✅ Not explicitly required for challenge (marked as "recommended")
+- ✅ Professional enough for application scope
+
+**Future Enhancement:** Consider Sentry if/when you need:
+- Error alerts/notifications
+- Error grouping and trends
+- More detailed context and breadcrumbs
+- Advanced error tracking dashboard
+
+**Related Documentation**: `docs/ERROR_TRACKING_ANALYSIS.md` (Vercel logs vs Sentry comparison)
 
 ### Usage Metrics Enhancement (✅ Basic exists)
 Current `/metrics` endpoint tracks sessions. Consider enhancing to:
