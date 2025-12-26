@@ -4,10 +4,10 @@ Test script for rate limiting.
 
 Usage:
     # Test locally (make sure server is running)
-    python3 test_rate_limiting.py local
+    python3 tests/test_rate_limiting.py local
 
     # Test production
-    python3 test_rate_limiting.py production https://your-app.vercel.app
+    python3 tests/test_rate_limiting.py production https://your-app.vercel.app
 """
 
 import sys
@@ -161,11 +161,11 @@ if __name__ == "__main__":
     elif mode == "production":
         if len(sys.argv) < 3:
             print("Error: Production URL required")
-            print("Usage: python3 test_rate_limiting.py production https://your-app.vercel.app")
+            print("Usage: python3 tests/test_rate_limiting.py production https://your-app.vercel.app")
             sys.exit(1)
         test_production(sys.argv[2])
     else:
         print(f"Error: Unknown mode '{mode}'")
-        print("Usage: python3 test_rate_limiting.py [local|production] [url]")
+        print("Usage: python3 tests/test_rate_limiting.py [local|production] [url]")
         sys.exit(1)
 

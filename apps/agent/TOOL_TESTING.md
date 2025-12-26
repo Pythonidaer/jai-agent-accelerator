@@ -11,7 +11,7 @@ cd apps/agent
 source .venv/bin/activate  # or: source venv/bin/activate
 
 # Run the test suite
-python3 test_custom_tools.py
+python3 tests/test_custom_tools.py
 ```
 
 ## What Gets Tested
@@ -129,7 +129,7 @@ pip install -e .
 
 ## Adding More Tests
 
-To test additional tools, add new test methods to the `ToolTester` class in `test_custom_tools.py`:
+To test additional tools, add new test methods to the `ToolTester` class in `tests/test_custom_tools.py`:
 
 ```python
 def test_your_new_tool(self) -> Dict[str, Any]:
@@ -167,7 +167,7 @@ After all tests pass:
 
 ## Related Files
 
-- **Test script**: `apps/agent/test_custom_tools.py`
+- **Test script**: `apps/agent/tests/test_custom_tools.py`
 - **Log files**: `apps/agent/logs/tool_test_*.json`
 - **Tool implementations**: `apps/agent/src/pmm_agent/tools/*.py`
 

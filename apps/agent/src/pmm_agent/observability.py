@@ -98,11 +98,21 @@ class AgentLogger:
         
         # Setup Python logging
         self.logger = logging.getLogger("pmm_agent")
-        self.logger.setLevel(logging.DEBUG)
+        
+        # Get log level from environment variable, default to INFO
+        log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+        log_level_map = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+        }
+        root_log_level = log_level_map.get(log_level_str, logging.INFO)
+        self.logger.setLevel(root_log_level)
         
         # Console handler (always use stdout/stderr)
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(root_log_level)
         console_formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
@@ -113,6 +123,7 @@ class AgentLogger:
         if self.enable_file_logging:
             try:
                 file_handler = logging.FileHandler(self.log_dir / "agent.log")
+                # File handler uses DEBUG level to capture everything (filtered by logger level)
                 file_handler.setLevel(logging.DEBUG)
                 file_formatter = logging.Formatter(
                     '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'

@@ -365,7 +365,7 @@ ai_message = await llm_with_tools.ainvoke(...)
 **New Files Created:**
 - `apps/agent/src/pmm_agent/observability.py` - Observability and logging infrastructure
 - `apps/agent/src/pmm_agent/test_exercise2.py` - Automated testing for Exercise 2 protocol
-- `apps/agent/run_exercise2_test.py` - Test runner script
+- `apps/agent/tests/run_exercise2_test.py` - Test runner script
 
 **Protocol Violation Detection:**
 - The observability system correctly detects protocol violations only on the first message
@@ -538,6 +538,128 @@ The fixed implementation follows this clear workflow:
 
 ---
 
+## Production Checklist Implementation
+
+**Status:** ✅ Completed (with model selection decision documented)
+
+**Context:**
+- Completed the Production Checklist items from `docs/DEPLOYMENT.md`
+- Implemented security, performance, and monitoring improvements
+- Made strategic decision regarding model selection strategy
+
+### Model Selection Decision
+
+**Decision**: Using Sonnet 4 globally (no split-model strategy implemented)
+
+**Evaluation Process**:
+1. **Initial Consideration**: Evaluated split-model strategy (Haiku for simple tasks, Sonnet 4 for complex tasks)
+2. **Architecture Analysis**: Discovered current architecture uses single model for all requests - implementing split-model would require significant architectural changes (request complexity detection, routing logic)
+3. **Haiku Testing**: Tested Haiku (`claude-3-5-haiku-20241022`) for potential cost savings (~92% reduction, 12x cheaper)
+4. **Quality Assessment**: Initial testing with Haiku revealed potentially subpar responses, particularly with formatting issues
+5. **Decision Rationale**: Split-model strategy not required for the project challenge, and quality concerns with Haiku led to decision to keep Sonnet 4
+
+**Current Configuration**:
+- Production model: `claude-sonnet-4-20250514` (configured via `MODEL` environment variable)
+- Model is configurable via environment variable if needed in the future
+- No automatic routing logic - all requests use the same model globally
+
+**Cost Implications**:
+- **Note**: This project has been revealed to be rather expensive due to Sonnet 4 usage
+- Sonnet 4: ~$3 per 1M input tokens, ~$15 per 1M output tokens
+- Haiku: ~$0.25 per 1M input tokens, ~$1.25 per 1M output tokens (~12x cheaper)
+- Using Sonnet 4 for all requests significantly increases operational costs
+- Cost vs. quality trade-off: Chose quality consistency over cost savings
+
+**Related Documentation**:
+- Model selection details: `docs/DEPLOYMENT_CHECKLIST_VERIFICATION.md` (Model Selection section)
+- Cost analysis: `docs/COST_OPTIMIZATION.md`
+- Split-model strategy options: `docs/SPLIT_MODEL_STRATEGY.md` (not implemented)
+- Deployment checklist: `docs/DEPLOYMENT.md` (Production Checklist section)
+
+### Cold Start Optimization Decision
+
+**Decision**: Not implementing cold start optimization (keeping functions warm)
+
+**Evaluation Process**:
+1. **What it would do**: Periodically ping the function to keep it "warm" and eliminate 2-5 second cold start delays
+2. **Benefits**: Reduces latency for first request after inactivity, improves user experience
+3. **Costs**: Slightly more money (negligible, but still costs more than $0)
+4. **Decision Rationale**: 
+   - Costs more money (even if negligible)
+   - Not required for the project challenge
+   - If traffic is regular, functions stay warm naturally
+   - Easy to add later if needed
+
+**When to Reconsider**:
+- If user experience is significantly impacted by cold start delays in production
+- If traffic patterns create significant gaps causing frequent cold starts
+- If response time consistency becomes critical for the application
+
+**Related Documentation**:
+- Comprehensive guide: `docs/COLD_START_OPTIMIZATION.md`
+- Deployment checklist: `docs/DEPLOYMENT.md` (Production Checklist section)
+
+**Production Checklist Items Completed**:
+
+**Security**:
+- ✅ API Key Security: Never commit keys to git
+- ✅ CORS Configuration: Restrict to your domains only (configurable via `ALLOWED_ORIGINS`)
+- ✅ Rate Limiting: Implement request limits (slowapi with 10-60 requests/minute)
+- ✅ Input Validation: Validate all user inputs (1-50k char validation)
+- ✅ HTTPS Only: Enforce TLS everywhere (automatic on Vercel)
+
+**Performance**:
+- ✅ Response Caching: Cache common queries (health: lru_cache, metrics: 30s TTL)
+- ✅ Conversation Truncation: Limit history length (MAX_MESSAGE_HISTORY=100)
+- ✅ Model Selection: Decision made (Sonnet 4 globally, split-model not implemented)
+- ✅ Cold Start Optimization: Decision made (not implementing - costs more money, not required for challenge)
+
+**Monitoring**:
+- ✅ Health Checks: Automated uptime monitoring (endpoint exists)
+- ⚠️ Error Tracking: Sentry or similar (recommended, not implemented)
+- ✅ Usage Metrics: Track tokens and costs (basic endpoint exists)
+- ⚠️ Alerting: Set up cost and error alerts (operational task)
+
+**Cost Control**:
+- ⚠️ Budget Alerts: Set spending limits (configure in Anthropic console)
+- ⚠️ Usage Dashboards: Monitor token consumption (operational task)
+- ⚠️ Prompt Optimization: Minimize input tokens (ongoing optimization)
+- ⚠️ Caching Strategy: Reduce duplicate calls (response caching implemented)
+
+**Cold Start Optimization Decision:**
+- **Decision**: Not implementing cold start optimization (keeping functions warm)
+- **Rationale**:
+  1. **Costs more money** - While cost is negligible (pennies per month), it still costs more than $0
+  2. **Not required** - Not required for the project challenge
+  3. **Natural warm-up** - If traffic is regular, functions stay warm naturally
+  4. **Easy to add later** - Can be implemented later if user experience is impacted by cold starts
+- **What it would do**: Periodically ping the function to keep it "warm" and eliminate 2-5 second cold start delays
+- **When to reconsider**: If user experience is significantly impacted by cold start delays in production
+- **Related Documentation**: `docs/COLD_START_OPTIMIZATION.md`
+
+**Files Modified for Production Checklist**:
+- `apps/agent/src/pmm_agent/server.py` - CORS, rate limiting, input validation, caching, conversation truncation
+- `apps/agent/pyproject.toml` - Added slowapi, python-dotenv dependencies
+- `api/requirements.txt` - Added slowapi for Vercel deployment
+- Test files in `apps/agent/tests/` - Comprehensive test suite for verification
+- Documentation files in `docs/` - Deployment checklist guides and verification steps
+
+**Key Implementations**:
+1. **CORS Configuration**: Configurable via `ALLOWED_ORIGINS` environment variable, restrictive in production
+2. **Rate Limiting**: Implemented with `slowapi` - 10 requests/minute for chat, 60/minute for health, 30/minute for metrics
+3. **Input Validation**: Pydantic validation with 1-50,000 character limits on messages
+4. **Response Caching**: Health endpoint uses `@lru_cache`, metrics uses 30-second TTL cache
+5. **Conversation Truncation**: Limits message history to 100 messages (configurable via `MAX_MESSAGE_HISTORY`)
+6. **Model Configuration**: `MODEL` environment variable support (currently set to Sonnet 4)
+
+**Testing and Verification**:
+- Comprehensive test suite: `apps/agent/tests/run_deployment_checklist_test.py`
+- Individual test scripts for each major feature (rate limiting, input validation, response caching, etc.)
+- Manual verification guide: `docs/DEPLOYMENT_CHECKLIST_VERIFICATION.md`
+- All automated tests passing for implemented features
+
+---
+
 ## Notes
 
 - These deviations were necessary due to project configuration mismatches, code syntax issues, and API changes
@@ -546,5 +668,7 @@ The fixed implementation follows this clear workflow:
 - The API fix allows the agent to be created successfully
 - The Exercise 2 fixes ensure proper tool execution and response formatting
 - The observability system provides critical debugging capabilities for agent behavior
+- The Production Checklist implementation adds production-ready security, performance, and monitoring features
+- Model selection decision prioritizes quality consistency over cost optimization
 - All other setup steps from Path C (Developer) instructions remain valid
 

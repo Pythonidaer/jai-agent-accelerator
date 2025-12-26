@@ -46,3 +46,24 @@ credentials.json
 # Local Netlify folder
 .netlify
 .vercel
+
+# Project-specific documentation (added during challenge implementation)
+docs/VERIFY_PRODUCTION_MODEL.md
+docs/SPLIT_MODEL_STRATEGY.md
+docs/PERFORMANCE_CHECKLIST_STEPS.md
+docs/MODEL_SWITCHING_GUIDE.md
+docs/HAIKU_QUALITY_TEST.md
+docs/DEPLOYMENT_CHECKLIST_SUMMARY.md
+docs/DEPLOYMENT_CHECKLIST_VERIFICATION.md
+docs/COST_OPTIMIZATION.md
+docs/COLD_START_OPTIMIZATION.md
+
+# Local development helper scripts
+apps/agent/restart_server.sh
+apps/agent/start_local.sh
+
+# Agent-specific documentation (added during challenge implementation)
+apps/agent/TOOL_TESTING.md
+apps/agent/OBSERVABILITY_SETUP.md
+apps/agent/DEBUGGING_GUIDE.md
+apps/agent/LOCAL_SETUP.md

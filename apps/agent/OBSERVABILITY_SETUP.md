@@ -31,11 +31,11 @@ Enhanced the streaming endpoint to:
 - Log responses with protocol analysis
 - Provide metrics endpoints
 
-### 4. Test Runner (`run_exercise2_test.py`)
+### 4. Test Runner (`tests/run_exercise2_test.py`)
 
 Simple script to run tests:
 ```bash
-python run_exercise2_test.py
+python tests/run_exercise2_test.py
 ```
 
 ### 5. Debugging Guide (`DEBUGGING_GUIDE.md`)
@@ -50,7 +50,7 @@ Complete guide on how to use the observability tools.
 cd apps/agent
 source .venv/bin/activate
 export ANTHROPIC_API_KEY=sk-ant-your-key-here
-python run_exercise2_test.py
+python tests/run_exercise2_test.py
 ```
 
 This will:
@@ -162,7 +162,7 @@ The test suite identifies specific problems:
 
 - `src/pmm_agent/observability.py` - Logging and metrics
 - `src/pmm_agent/test_exercise2.py` - Test framework
-- `run_exercise2_test.py` - Test runner script
+- `tests/run_exercise2_test.py` - Test runner script
 - `DEBUGGING_GUIDE.md` - Complete debugging guide
 - `OBSERVABILITY_SETUP.md` - This file
 

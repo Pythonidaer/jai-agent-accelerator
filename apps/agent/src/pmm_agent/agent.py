@@ -78,10 +78,13 @@ def create_pmm_agent(
     return agent
 
 
-def create_competitive_analyst():
+def create_competitive_analyst(model_name: str = None):
     """Create a specialist agent for competitive intelligence."""
+    import os
+    if model_name is None:
+        model_name = os.getenv("MODEL", "claude-sonnet-4-20250514")
     llm = ChatAnthropic(
-        model_name="claude-sonnet-4-20250514",
+        model_name=model_name,
         max_tokens=4096,
         system=COMPETITIVE_ANALYST_PROMPT,
     )
@@ -91,10 +94,13 @@ def create_competitive_analyst():
     )
 
 
-def create_messaging_specialist():
+def create_messaging_specialist(model_name: str = None):
     """Create a specialist agent for messaging work."""
+    import os
+    if model_name is None:
+        model_name = os.getenv("MODEL", "claude-sonnet-4-20250514")
     llm = ChatAnthropic(
-        model_name="claude-sonnet-4-20250514",
+        model_name=model_name,
         max_tokens=4096,
         system=MESSAGING_SPECIALIST_PROMPT,
     )
@@ -104,10 +110,13 @@ def create_messaging_specialist():
     )
 
 
-def create_launch_coordinator():
+def create_launch_coordinator(model_name: str = None):
     """Create a specialist agent for launch planning."""
+    import os
+    if model_name is None:
+        model_name = os.getenv("MODEL", "claude-sonnet-4-20250514")
     llm = ChatAnthropic(
-        model_name="claude-sonnet-4-20250514",
+        model_name=model_name,
         max_tokens=4096,
         system=LAUNCH_COORDINATOR_PROMPT,
     )

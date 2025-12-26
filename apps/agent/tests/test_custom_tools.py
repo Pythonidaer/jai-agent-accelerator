@@ -13,7 +13,7 @@ Usage:
     # pip install -e .
     
     # Run the tests:
-    python3 test_custom_tools.py
+    python3 tests/test_custom_tools.py
 """
 
 import sys

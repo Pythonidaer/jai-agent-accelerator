@@ -10,12 +10,12 @@ This is a quick reference for the deployment checklist verification tools and im
 A comprehensive TDD test suite that automatically verifies:
 - ✅ API key security (checks .gitignore, searches for hardcoded keys)
 - ✅ CORS configuration (checks code for proper setup)
-- ⚠️  Rate limiting (checks if implemented)
+- ✅ Rate limiting (implemented with slowapi)
 - ✅ Input validation (tests Pydantic models)
 - ✅ HTTPS enforcement (checks deployment platform)
-- ⚠️  Response caching (checks if implemented)
+- ✅ Response caching (checks if implemented - Health & Metrics endpoints cached)
 - ✅ Conversation truncation (checks if implemented)
-- ✅ Model selection (checks for MODEL env var)
+- ⚠️ Model selection (checks for MODEL env var - configurable but no automatic routing)
 - ✅ Health checks (tests /health endpoint)
 - ⚠️  Error tracking (checks for Sentry)
 - ✅ Usage metrics (tests /metrics endpoint)
@@ -23,7 +23,7 @@ A comprehensive TDD test suite that automatically verifies:
 **Run tests:**
 ```bash
 cd apps/agent
-python3 run_deployment_checklist_test.py
+python3 tests/run_deployment_checklist_test.py
 ```
 
 ### 2. Manual Verification Guide
@@ -56,13 +56,24 @@ Step-by-step manual verification instructions for each checklist item, including
 - Configurable via `MAX_MESSAGE_HISTORY` environment variable
 - Applied to both `/chat` and `/chat/stream` endpoints
 
+#### Rate Limiting (✅ Implemented)
+- Implemented using `slowapi` library
+- Configured limits per endpoint:
+  - `/health`: 60 requests/minute
+  - `/chat` and `/chat/stream`: 10 requests/minute per IP
+  - `/metrics`: 30 requests/minute
+- Rate limits reset every minute (sliding window)
+- Returns HTTP 429 (Too Many Requests) when limit exceeded
+- Per-IP address tracking for rate limiting
+- Test script available: `apps/agent/tests/test_rate_limiting.py`
+
 ## Quick Start Guide
 
 ### Step 1: Run Automated Tests
 
 ```bash
 cd apps/agent
-python3 run_deployment_checklist_test.py
+python3 tests/run_deployment_checklist_test.py
 ```
 
 This will:
@@ -101,16 +112,50 @@ vercel env add MAX_MESSAGE_HISTORY production  # Default: 100
 
 ## Items Still Needing Implementation
 
-### Rate Limiting (⚠️ Recommended)
-Currently not implemented. See `DEPLOYMENT_CHECKLIST_VERIFICATION.md` for implementation options:
-- Option A: Use `slowapi` library (recommended)
-- Option B: Use Vercel Edge Config (platform-level)
+### Rate Limiting (✅ Implemented)
+✅ **COMPLETE** - Implemented using `slowapi` library. See implementation in `apps/agent/src/pmm_agent/server.py` and test with `apps/agent/tests/test_rate_limiting.py`.
 
-### Response Caching (⚠️ Optional)
-Consider implementing caching for:
-- Health check responses
-- Common queries/responses
-- Static data lookups
+### Response Caching (✅ Implemented & Verified)
+- **Health endpoint**: Uses `@lru_cache` for static responses (verified)
+- **Metrics endpoint**: Uses time-based cache (30-second TTL) (verified)
+- **Chat endpoints**: Intentionally NOT cached (LLM responses should be fresh)
+- **Test script**: `apps/agent/tests/test_response_caching.py` - All tests passing
+- **Why chat isn't cached**: LLM responses should be dynamic and context-aware. Caching would break conversation flow and user experience.
+
+### Model Selection (✅ Decision Made)
+**Status**: Using Sonnet 4 globally (no split-model strategy)
+
+**Decision Rationale**:
+- Split-model strategy (using Haiku for simple tasks, Sonnet 4 for complex) was evaluated but not implemented
+- Not required for the project challenge
+- Initial testing with Haiku revealed potentially subpar responses (formatting issues)
+- Decision made to keep Sonnet 4 globally for consistent quality
+- **Note**: This project has been revealed to be rather expensive due to Sonnet 4 usage
+
+**Current Configuration**:
+- `MODEL` environment variable: `claude-sonnet-4-20250514` (default and production)
+- Model configurable via environment variable if needed in the future
+- No automatic routing logic (all requests use the same model)
+
+**Cost Consideration**:
+- Sonnet 4 is significantly more expensive than Haiku (~12x cost difference)
+- For production use, consider cost vs. quality trade-offs
+- See `docs/COST_OPTIMIZATION.md` for detailed cost analysis
+
+### Cold Start Optimization (✅ Decision Made - Not Implementing)
+**Status**: Decided not to implement for now
+
+**Decision Rationale**:
+- Cold start optimization (keeping functions warm) costs slightly more money (negligible, but not zero)
+- Not required for the project challenge
+- If traffic is regular, functions stay warm naturally
+- Easy to add later using free services (UptimeRobot) if needed
+
+**What it would do**: Periodically ping the function to keep it "warm" and eliminate 2-5 second cold start delays
+
+**When to reconsider**: If user experience is impacted by cold start delays in production
+
+**Related Documentation**: `docs/COLD_START_OPTIMIZATION.md` (comprehensive guide if needed in the future)
 
 ### Error Tracking (⚠️ Recommended)
 Set up Sentry or similar:
@@ -163,9 +208,28 @@ curl -X POST https://your-app.vercel.app/api/chat \
   -d "{\"message\":\"$(python3 -c 'print(\"x\"*50001)')\"}"
 ```
 
+### Rate Limiting Test
+```bash
+# Use the test script (recommended)
+cd apps/agent
+python3 tests/test_rate_limiting.py production https://your-app.vercel.app
+
+# Or manual test - make 15 rapid requests
+for i in {1..15}; do
+  curl -X POST https://your-app.vercel.app/api/chat \
+       -H "Content-Type: application/json" \
+       -d '{"message":"test"}' \
+       -w "\nRequest $i: %{http_code}\n" -s | tail -1
+  sleep 0.1
+done
+
+# Expected: First 10 requests return 200, requests 11+ return 429
+# Rate limits reset every minute (sliding window)
+```
+
 ## Next Steps
 
-1. ✅ Run automated tests: `python3 apps/agent/run_deployment_checklist_test.py`
+1. ✅ Run automated tests: `python3 apps/agent/tests/run_deployment_checklist_test.py`
 2. 📖 Review manual verification guide: `docs/DEPLOYMENT_CHECKLIST_VERIFICATION.md`
 3. ⚙️ Configure production environment variables
 4. 🚀 Deploy and verify

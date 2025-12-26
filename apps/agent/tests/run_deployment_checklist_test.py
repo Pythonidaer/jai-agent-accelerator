@@ -3,7 +3,7 @@
 Simple runner script for deployment checklist tests.
 
 Usage:
-    python3 run_deployment_checklist_test.py
+    python3 tests/run_deployment_checklist_test.py
     
 Note: This can be run without activating venv, as it only checks configuration
 and code structure. Runtime tests are skipped if dependencies aren't available.
@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Import the test module directly without going through __init__.py
 # This avoids importing heavy dependencies like langchain_anthropic
-test_file_path = Path(__file__).parent / "src" / "pmm_agent" / "test_deployment_checklist.py"
+test_file_path = Path(__file__).parent.parent / "src" / "pmm_agent" / "test_deployment_checklist.py"
 spec = importlib.util.spec_from_file_location("test_deployment_checklist", test_file_path)
 test_module = importlib.util.module_from_spec(spec)
 

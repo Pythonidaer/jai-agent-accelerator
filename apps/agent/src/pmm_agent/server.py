@@ -8,6 +8,28 @@ import json
 import uuid
 import time
 from typing import AsyncGenerator
+from functools import lru_cache
+from datetime import datetime
+from pathlib import Path
+
+# Auto-load .env file if it exists (for local development)
+# This allows you to store environment variables in a .env file
+# without needing to export them manually each time
+try:
+    from dotenv import load_dotenv
+    # Load .env file from project root (apps/agent/.env) or parent (project root/.env)
+    env_paths = [
+        Path(__file__).parent.parent.parent / ".env",  # apps/agent/.env
+        Path(__file__).parent.parent.parent.parent / ".env",  # project root/.env
+    ]
+    for env_path in env_paths:
+        if env_path.exists():
+            load_dotenv(env_path)
+            break
+except ImportError:
+    # python-dotenv not installed, skip auto-loading
+    # Users can still export env vars manually or use the start_local.sh script
+    pass
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,7 +52,8 @@ from .agent import create_pmm_agent
 TOOL_MAP = {tool.name: tool for tool in ALL_TOOLS}
 
 # Initialize the ReAct agent - this enforces tool usage
-agent = create_pmm_agent(mode="full", model_name=os.getenv("MODEL", "claude-sonnet-4-20250514"))
+model_name = os.getenv("MODEL", "claude-sonnet-4-20250514")
+agent = create_pmm_agent(mode="full", model_name=model_name)
 
 # Configure root_path for Vercel deployment
 # Vercel passes /api/* paths, so FastAPI needs to know it's mounted at /api
@@ -95,6 +118,10 @@ sessions: dict = {}
 # Initialize observability
 logger = get_logger()
 
+# Log which model is being used (for debugging/verification)
+# Note: model_name is already defined above when creating the agent
+logger.logger.info(f"🤖 Agent initialized with model: {model_name}")
+
 # Configuration
 MAX_MESSAGE_HISTORY = int(os.getenv("MAX_MESSAGE_HISTORY", "100"))  # Keep last 100 messages per session
 
@@ -127,10 +154,22 @@ class ChatResponse(BaseModel):
     tool_calls: list | None = None
 
 
+# Cache health check response (static content)
+@lru_cache(maxsize=1)
+def get_health_response():
+    """Cached health check response."""
+    return {
+        "status": "ok",
+        "agent": "jai-agent-accelerator",
+        "version": "0.1.0",
+        "cached_at": datetime.now().isoformat()
+    }
+
 @app.get("/health")
 @limiter.limit("60/minute")  # 60 requests per minute for health checks
 def health(request: Request):
-    return {"status": "ok", "agent": "jai-agent-accelerator", "version": "0.1.0"}
+    # Return cached response for better performance
+    return get_health_response()
 
 
 @app.post("/chat")
@@ -190,12 +229,12 @@ async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
                          "args": tc.get('args') or tc.get('input', {}) if isinstance(tc, dict) else getattr(tc, 'args', {})}
                         for tc in msg.tool_calls
                     ]
-                break
+                    break
     
     # Fallback if no response found
     if not response_text:
         response_text = "I processed your request. (Response extraction may need adjustment)"
-    
+
     session["messages"].append({"role": "assistant", "content": response_text})
 
     return ChatResponse(
@@ -245,7 +284,7 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
                 langchain_messages.append(HumanMessage(content=m["content"]))
             elif m["role"] == "assistant":
                 langchain_messages.append(AIMessage(content=m["content"]))
-        
+
         full_response = ""
         
         # Track seen tool calls to prevent duplicates
@@ -347,7 +386,7 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
                                         
                                         # Stream tool call to frontend
                                         yield f"data: {json.dumps({'type': 'tool_call', 'name': tool_name, 'args': tool_args})}\n\n"
-                            
+            
                             # Extract and stream text content
                             text_content = ""
                             if isinstance(agent_message.content, str):
@@ -431,7 +470,6 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
                                         tool_calls_tracked.append(tool_event)
                                         
                                         # Log for local development
-                                        is_local = not os.getenv("VERCEL") and not os.getenv("PRODUCTION")
                                         if is_local:
                                             try:
                                                 args_preview = json.dumps(tool_args)[:200] + "..." if len(json.dumps(tool_args)) > 200 else json.dumps(tool_args)
@@ -444,7 +482,7 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
                                         yield f"data: {json.dumps({'type': 'tool_call', 'name': tool_name, 'args': tool_args})}\n\n"
                             
                             # Extract text content from AI messages
-                            elif isinstance(msg, AIMessage):
+                            if isinstance(msg, AIMessage):
                                 text_content = ""
                                 if isinstance(msg.content, str):
                                     text_content = msg.content
@@ -454,9 +492,10 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
                                             text_content += item.get('text', '')
                                 
                                 # Stream text character by character
-                                for char in text_content:
-                                    full_response += char
-                                    yield f"data: {json.dumps({'type': 'text', 'content': char})}\n\n"
+                                if text_content:
+                                    for char in text_content:
+                                        full_response += char
+                                        yield f"data: {json.dumps({'type': 'text', 'content': char})}\n\n"
                                 
                                 # Check for tool calls in this message too
                                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
@@ -482,7 +521,6 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
                                             )
                                             tool_calls_tracked.append(tool_event)
                                             
-                                            is_local = not os.getenv("VERCEL") and not os.getenv("PRODUCTION")
                                             if is_local:
                                                 try:
                                                     args_preview = json.dumps(tool_args)[:200] + "..." if len(json.dumps(tool_args)) > 200 else json.dumps(tool_args)
@@ -493,7 +531,7 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
                                             
                                             yield f"data: {json.dumps({'type': 'tool_call', 'name': tool_name, 'args': tool_args})}\n\n"
                     
-                    # Note: "agent" node is already handled above at line 262
+                    # Note: "agent" node is already handled above at line 300
                     # This legacy code path is removed to prevent duplicate processing
                                     
         except Exception as e:
@@ -501,7 +539,7 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
             import traceback
             traceback.print_exc()
             yield f"data: {json.dumps({'type': 'text', 'content': f'Error: {str(e)}'})}\n\n"
-        
+
         # Log the complete response
         response_time_ms = (time.time() - start_time) * 1000
         logger.log_response(
@@ -513,7 +551,7 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
             response_time_ms=response_time_ms,
             is_first_message=is_first_message,
         )
-        
+
         # Update session with final response
         session["messages"].append({"role": "assistant", "content": full_response})
         yield f"data: {json.dumps({'type': 'done', 'session_id': session_id})}\n\n"
@@ -537,11 +575,23 @@ def delete_session(session_id: str):
     raise HTTPException(status_code=404, detail="Session not found")
 
 
-@app.get("/metrics")
-@limiter.limit("30/minute")  # 30 requests per minute for metrics
-def get_metrics(request: Request):
-    """Get observability metrics."""
-    return {
+# Cache metrics response for 30 seconds (metrics update frequently)
+# Use a simple time-based cache
+_metrics_cache = None
+_metrics_cache_time = None
+METRICS_CACHE_TTL = 30  # Cache for 30 seconds
+
+def get_cached_metrics():
+    """Get metrics with short-term caching."""
+    global _metrics_cache, _metrics_cache_time
+    current_time = time.time()
+    
+    # Return cached metrics if still valid
+    if _metrics_cache and _metrics_cache_time and (current_time - _metrics_cache_time) < METRICS_CACHE_TTL:
+        return _metrics_cache
+    
+    # Generate fresh metrics
+    metrics = {
         "sessions": {
             sid: logger.get_session_summary(sid)
             for sid in logger.sessions.keys()
@@ -553,8 +603,20 @@ def get_metrics(request: Request):
                 1 for e in logger.events 
                 if e.followed_clarification_protocol is False
             ),
-        }
+        },
+        "cached_at": datetime.now().isoformat()
     }
+    
+    # Update cache
+    _metrics_cache = metrics
+    _metrics_cache_time = current_time
+    return metrics
+
+@app.get("/metrics")
+@limiter.limit("30/minute")  # 30 requests per minute for metrics
+def get_metrics(request: Request):
+    """Get observability metrics (cached for 30 seconds)."""
+    return get_cached_metrics()
 
 
 @app.get("/metrics/session/{session_id}")

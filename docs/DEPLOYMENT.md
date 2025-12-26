@@ -576,23 +576,23 @@ No additional configuration needed.
 ## Production Checklist
 
 > **💡 Verification Tools Available:**
-> - **Automated Tests**: Run `python apps/agent/run_deployment_checklist_test.py` to test code-level items
+> - **Automated Tests**: Run `python apps/agent/tests/run_deployment_checklist_test.py` to test code-level items
 > - **Manual Verification Guide**: See [DEPLOYMENT_CHECKLIST_VERIFICATION.md](DEPLOYMENT_CHECKLIST_VERIFICATION.md) for detailed steps to verify each item
 
 ### Security
 
 - [ ] **API Key Security**: Never commit keys to git
 - [ ] **CORS Configuration**: Restrict to your domains only *(✅ Improved: Now configurable via ALLOWED_ORIGINS env var)*
-- [ ] **Rate Limiting**: Implement request limits
-- [ ] **Input Validation**: Validate all user inputs *(✅ Improved: Added message length validation)*
-- [ ] **HTTPS Only**: Enforce TLS everywhere
+- [x] **Rate Limiting**: Implement request limits *(✅ Implemented: slowapi with 10-60 requests/minute per endpoint)*
+- [x] **Input Validation**: Validate all user inputs *(✅ Implemented & Verified: 1-50k char validation, returns 422 for invalid input)*
+- [x] **HTTPS Only**: Enforce TLS everywhere *(✅ Automatic on Vercel)*
 
 ### Performance
 
-- [ ] **Response Caching**: Cache common queries
+- [x] **Response Caching**: Cache common queries *(✅ Implemented & Verified: Health endpoint uses lru_cache, Metrics endpoint uses 30s TTL cache - Test script: apps/agent/tests/test_response_caching.py)*
 - [ ] **Conversation Truncation**: Limit history length *(✅ Implemented: MAX_MESSAGE_HISTORY=100)*
-- [ ] **Model Selection**: Use Haiku for simple tasks
-- [ ] **Cold Start Optimization**: Keep functions warm
+- [x] **Model Selection**: Use Haiku for simple tasks *(✅ Decision Made: Using Sonnet 4 globally. Split-model strategy evaluated but not implemented - not required for project, and Haiku testing revealed formatting issues. Note: Project is expensive due to Sonnet 4 usage)*
+- [x] **Cold Start Optimization**: Keep functions warm *(✅ Decision Made: Not implementing for now - costs more money, not required for challenge, easy to add later if needed)*
 
 ### Monitoring
 

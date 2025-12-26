@@ -3,7 +3,7 @@
 Quick test runner for Exercise 2.
 
 Usage:
-    python run_exercise2_test.py
+    python tests/run_exercise2_test.py
 """
 
 import asyncio

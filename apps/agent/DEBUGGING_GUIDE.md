@@ -10,7 +10,7 @@ This guide helps you identify and fix issues with the Clarification Protocol in 
 cd apps/agent
 source .venv/bin/activate
 export ANTHROPIC_API_KEY=sk-ant-your-key-here
-python run_exercise2_test.py
+python tests/run_exercise2_test.py
 ```
 
 This will:
@@ -133,7 +133,7 @@ export ANTHROPIC_API_KEY=sk-ant-your-key-here
 python -m uvicorn pmm_agent.server:app --host 0.0.0.0 --port 8123
 
 # 2. In another terminal, run tests
-python run_exercise2_test.py
+python tests/run_exercise2_test.py
 
 # 3. Check results
 cat logs/exercise2_test_results.json | jq '.results[0]'
